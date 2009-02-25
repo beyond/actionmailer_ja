@@ -1,4 +1,9 @@
 require 'jcode'
+require 'action_mailer/version'
+
+# = ActionMailer::Ja
+# 
+# Ruby on Rails 2.0 以降に対応。
 module ActionMailer
   module Ja
     # Subject, From, Recipients, Cc を自動的に base64 encode するかの真偽値。（デフォルト true）
@@ -20,9 +25,13 @@ module ActionMailer
     # Mobile Mail Address
     attr_accessor :mobile
 
+    # Mobile Layout
+    attr_accessor :mobile_layout
+
     def self.included(base) #:nodoc:
       base.class_eval do
         alias_method_chain :render_message, :jpmobile
+        alias_method_chain :render, :ja
         alias_method_chain :create!, :ja
         self.default_charset = 'iso-2022-jp' unless defined? Locale
       end
@@ -102,6 +111,24 @@ module ActionMailer
           vals << "mobile_#{jp_mobile_addr.career_template_path}"
         end
         vals << "mobile"
+
+        # 2.2 以降は layout を考慮する。
+        if ::ActionMailer::VERSION::MAJOR >=2 && ::ActionMailer::VERSION::MINOR >=2
+          layout_path = active_layout
+          if layout_path
+            vals.each do |v|
+              mobile_layout_path = "#{layout_path}_#{v}"
+              template_path = "#{template_root}/#{mobile_layout_path}"
+              template_exists ||= Dir.glob("#{template_path}.*").any? { |i| File.basename(i).split(".").length > 0 }
+              if template_exists
+                layout_path = mobile_layout_path
+                break;
+              end
+            end
+          end
+          self.mobile_layout = layout_path
+        end
+
         vals.each do |v|
           mobile_path = "#{method_name}_#{v}"
           template_path = "#{template_root}/#{mailer_name}/#{mobile_path}"
@@ -110,6 +137,14 @@ module ActionMailer
         end
       end
       render_message_without_jpmobile(method_name, body)
+    end
+
+    def render_with_ja(opts)
+      if ::ActionMailer::VERSION::MAJOR >=2 && ::ActionMailer::VERSION::MINOR >=2
+        render_without_ja(opts.merge(:layout => self.mobile_layout))
+      else
+        render_without_ja(opts)
+      end
     end
 
     # 機種依存文字を安全な文字に置換します。
@@ -124,11 +159,12 @@ module ActionMailer
     # 携帯メールアドレスでない場合、 nil が返されます。
     # recipients が複数指定されている場合、最初のメールアドレスで判断します。
     def mobile_address
-      recipient = Array === recipients ? recipients[0] : recipients
+      recipient = recipients.is_a?(Array) ? recipients[0] : recipients
+      email_addr = parse_mail_addr(recipient)
       ActionMailer::JpMobile.constants.each do |const|
         c = ActionMailer::JpMobile.const_get(const)
-        next if Hash === c
-        if c::MAIL_ADDR_REGEXP =~ parse_mail_addr(recipient)
+        next if c.is_a?(Hash)
+        if c::MAIL_ADDR_REGEXP =~ email_addr
           return c.new
         end
       end

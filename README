@@ -4,6 +4,8 @@ ActionmailerJa
 インストールするだけで、ActionMailer が日本語対応になるプラグインです。
 また、携帯電話用のメールテンプレートの振り分け機能も提供します。
 
+Ruby on Rails 2.0 以降に対応しています。
+
 
 Example
 =======
@@ -38,6 +40,13 @@ xx_mobile.erb
 
 
 xx.erb 
+
+
+Ruby on Rails 2.2 以降であれば、ActionMailer でも layout が利用できるようになっています。
+
+layout ファイルも上記のテンプレートと同様に、まずキャリア別のレイアウトを探し、
+
+存在しなければ、携帯共通レイアウト、それも存在しなければ通常レイアウトを利用します。
 
 
 *Subject などを Base64 Encode する機能の提供。
