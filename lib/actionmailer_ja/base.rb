@@ -1,4 +1,5 @@
-require 'jcode'
+# -*- coding: utf-8 -*-
+require 'nkf'
 require 'action_mailer/version'
 
 # = ActionMailer::Ja
@@ -32,26 +33,20 @@ module ActionMailer
       base.class_eval do
         alias_method_chain :render_message, :jpmobile
         alias_method_chain :render, :ja
-        alias_method_chain :create!, :ja
+        alias_method_chain :create_mail, :ja
+        alias_method_chain :quote_if_necessary, :ja
         self.default_charset = 'iso-2022-jp' unless defined? Locale
       end
     end
 
-    def base64_with_ja(text, charset="iso-2022-jp", convert=true)
-      return nil if text.nil?
-      if Array === text
-        text.map! {|t| base64_with_ja(t)}
-        return text
-      end
+    def quote_if_necessary_with_ja(text, charset)
       text = replace_safe_char(text) if auto_replace_safe_char
-      if convert && charset == "iso-2022-jp"
-        return NKF.nkf('-jW -M', text).strip
+      if auto_base64_encode
+        NKF.nkf('-jW -m0', text).strip
       else
-        text = TMail::Base64.folding_encode(text)
-        return "=?#{charset}?B?#{text}?="
+        quote_if_necessary_without_ja(charset, text)
       end
     end
-    alias :base64 :base64_with_ja
 
 
     # Locale があるかどうかで GetText が読み込まれたかを判断する
@@ -59,20 +54,21 @@ module ActionMailer
       return defined? Locale
     end
 
-    def create_with_ja!(*arg) #:nodoc:
-      create_without_ja!(*arg)
-      part = @mail.parts.empty? ? @mail : @mail.parts.first
-      if part.content_type == 'text/plain'
-        if ((!gettext?) || (gettext? && Locale.get.language == "ja"))
-          if self.mobile && self.mobile.softbank?
-            part.charset = 'utf-8'
-            part.body = NKF.nkf('-w', part.body)
-          else
-            part.charset = 'iso-2022-jp'
-            part.body = NKF.nkf('-j', part.body)
+    def create_mail_with_ja #:nodoc:
+      create_mail_without_ja
+      (@mail.parts.empty? ? [@mail] : @mail.parts).each { |part|
+        if part.content_type == 'text/plain'
+          if ((!gettext?) || (gettext? && Locale.get.language == "ja"))
+            if self.mobile && self.mobile.softbank?
+              part.charset = 'utf-8'
+              part.body = NKF.nkf('-w', part.body)
+            else
+              part.charset = 'iso-2022-jp'
+              part.body = NKF.nkf('-j', part.body)
+            end
           end
         end
-      end
+      }
       @mail
     end
 
@@ -94,12 +90,6 @@ module ActionMailer
     #  xx.erb 
     #
     def render_message_with_jpmobile(method_name, body)
-      if auto_base64_encode
-        self.subject = base64_with_ja(self.subject)
-        self.from = base64_with_ja(self.from)
-        self.recipients = base64_with_ja(self.recipients)
-        self.cc = base64_with_ja(self.cc)
-      end
       if jp_mobile_addr = mobile_address
         self.mobile = jp_mobile_addr
         vals = []

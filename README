@@ -18,7 +18,7 @@ Example
 
 *携帯電話対応。
 
-携帯電話のメールアドレスの場合、キャリア別の view テンプレートが利用できます。
+jpmobile 風のキャリア別テンプレート振り分け機能があり、携帯電話のメールアドレスの場合、キャリア別のテンプレートが利用できます。
 
 まず携帯キャリア別のテンプレートを探し存在すればそれを利用します。（拡張子は erb である必要はありません）
 
@@ -97,16 +97,11 @@ end
 
 
 *Ruby-GetText との共存
-config/initializers/gettext.rb を以下のようにします。
+特に設定は必要ありません。
 
 
-require 'gettext/rails'
-module ActionMailer
-  class Base
-    alias :create! :create_without_gettext!  #:nodoc:
-    alias_method_chain :base64, :ja  #:nodoc:
-  end
-end
+*Special Thanks
+knu : http://github.com/knu/
 
 
-Copyright (c) 2008 Kei Kusakari, released under the MIT license
+Copyright (c) 2009 Kei Kusakari, released under the MIT license
