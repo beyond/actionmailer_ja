@@ -64,7 +64,7 @@ module ActionMailer
               part.body = NKF.nkf('-w', part.body)
             else
               part.charset = 'iso-2022-jp'
-              part.body = NKF.nkf('-j', part.body)
+              part.body = NKF.nkf('-j --oc=CP50220', part.body)
             end
           end
         end
